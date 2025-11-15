@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.pTech.trustTheBox"
-        minSdk = 26
+        minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -77,5 +77,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.play.services.ads)
-
+    implementation("org.apache.poi:poi:5.5.0")
+    implementation("org.apache.poi:poi-ooxml:5.5.0")
+    implementation(libs.androidx.pdf.compose)
 }

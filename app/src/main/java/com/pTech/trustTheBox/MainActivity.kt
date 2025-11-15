@@ -5,11 +5,13 @@ import android.content.Intent
 import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfRenderer
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.view.WindowManager
 import android.widget.Toast
@@ -30,7 +32,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.android.gms.ads.MobileAds
 import com.pTech.trustTheBox.di.data.PassphraseDataStore
 import com.pTech.trustTheBox.model.MItem
 import com.pTech.trustTheBox.sdk.KeepScreenOn
@@ -39,14 +40,16 @@ import com.pTech.trustTheBox.sdk.TrustTheBox.encryptFiles
 import com.pTech.trustTheBox.ui.theme.component.PassphraseBottomBar
 import com.pTech.trustTheBox.ui.theme.component.PassphraseDialog
 import com.pTech.trustTheBox.ui.theme.screens.MainScreen
-import com.pTech.trustTheBox.ui.theme.screens.MediaScreen
-import com.pTech.trustTheBox.ui.theme.screens.ViewerScreen
+import com.pTech.trustTheBox.ui.theme.screens.mediaScreen.MediaScreen
+import com.pTech.trustTheBox.ui.theme.screens.viewerScreen.ViewerScreen
 import com.pTech.trustTheBox.util.AdManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.File
+import java.io.FileInputStream
 
 class MainActivity : ComponentActivity() {
 
@@ -300,35 +303,75 @@ class MainActivity : ComponentActivity() {
         extractedFiles.forEach { file ->
             val name = file.name.lowercase()
             val ext = name.substringAfterLast('.', "")
-            if (ext in listOf("jpg", "jpeg", "png", "gif", "webp")) {
-                val isLand =
-                    BitmapFactory.decodeFile(file.path)?.let { it.width > it.height } ?: false
-                list.add(MItem("image", Uri.fromFile(file), null, isLand))
-            } else if (ext in listOf("mp4", "mov", "avi", "mkv", "webm")) {
-                val retriever = MediaMetadataRetriever()
-                try {
-                    retriever.setDataSource(file.path)
-                    val width =
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-                            ?.toIntOrNull() ?: 0
-                    val height =
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-                            ?.toIntOrNull() ?: 0
-                    val isLand = width > height
-                    val thumb = retriever.getFrameAtTime(0)
-                    val thumbUri = thumb?.let {
-                        val f = File.createTempFile("thumb_", ".jpg", cacheDir)
-                        f.outputStream()
-                            .use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
-                        Uri.fromFile(f)
-                    }
-                    list.add(MItem("video", Uri.fromFile(file), thumbUri, isLand))
-                } catch (_: Exception) {
-                } finally {
-                    retriever.release()
+            when (ext) {
+                in listOf("jpg", "jpeg", "png", "gif", "webp") -> {
+                    val bitmap = BitmapFactory.decodeFile(file.path)
+                    val isLand = bitmap?.let { it.width > it.height } ?: false
+                    list.add(MItem("image", Uri.fromFile(file), null, isLand))
+                }
+                in listOf("mp4", "mov", "avi", "mkv", "webm") -> {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(file.path)
+                        val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                        val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                        val isLand = width > height
+                        val thumb = retriever.getFrameAtTime(0)
+                        val thumbUri = thumb?.let {
+                            val f = File.createTempFile("thumb_", ".jpg", cacheDir)
+                            f.outputStream().use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+                            Uri.fromFile(f)
+                        }
+                        list.add(MItem("video", Uri.fromFile(file), thumbUri, isLand))
+                    } catch (_: Exception) {} finally { retriever.release() }
+                }
+                "txt" -> {
+                    val text = file.readText(Charsets.UTF_8)
+                    val preview = text.take(200) + if (text.length > 200) "..." else ""
+                    list.add(MItem("text", Uri.fromFile(file), null, false, preview))
+                }
+                "pdf" -> {
+                    val thumbUri = generatePdfThumbnail(file)
+                    list.add(MItem("pdf", Uri.fromFile(file), thumbUri, false))
+                }
+                "docx" -> {
+                    val preview = extractDocxPreview(file)
+                    list.add(MItem("document", Uri.fromFile(file), null, false, preview))
                 }
             }
         }
         return list
+    }
+
+    private fun generatePdfThumbnail(file: File): Uri? {
+        return try {
+            val parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            val pdfRenderer = PdfRenderer(parcelFileDescriptor)
+            val page = pdfRenderer.openPage(0)
+            val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            page.close()
+            pdfRenderer.close()
+            parcelFileDescriptor.close()
+
+            val thumbFile = File.createTempFile("pdf_thumb_", ".jpg", cacheDir)
+            thumbFile.outputStream().use { out -> bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+            Uri.fromFile(thumbFile)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun extractDocxPreview(file: File): String {
+        return try {
+            FileInputStream(file).use { input ->
+                val doc = XWPFDocument(input)
+                val fullText = doc.paragraphs.joinToString("\n") { it.text }.take(200) + "..."
+                doc.close()
+                fullText
+            }
+        } catch (e: Exception) {
+            "Помилка завантаження прев'ю: ${e.message}"
+        }
     }
 }

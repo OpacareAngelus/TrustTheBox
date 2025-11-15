@@ -5,6 +5,7 @@ import android.net.Uri
 data class MItem(
     val type: String,
     val uri: Uri,
-    val thumbnailUri: Uri?,
-    val isLandscape: Boolean
+    val thumbnailUri: Uri? = null,
+    val isLandscape: Boolean = false,
+    val previewText: String? = ""
 )

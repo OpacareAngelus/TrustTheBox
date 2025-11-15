@@ -31,6 +31,7 @@ espressoCore = "3.7.0"
 appcompat = "1.6.1"
 playServicesAdsIdentifier = "18.2.0"
 zip4j = "2.11.5"
+pdfCompose = "1.0.0-alpha11"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -92,3 +93,4 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 play-services-ads-identifier = { group = "com.google.android.gms", name = "play-services-ads-identifier", version.ref = "playServicesAdsIdentifier" }
 zip4j = { module = "net.lingala.zip4j:zip4j", version.ref = "zip4j" }
+androidx-pdf-compose = { group = "androidx.pdf", name = "pdf-compose", version.ref = "pdfCompose" }
