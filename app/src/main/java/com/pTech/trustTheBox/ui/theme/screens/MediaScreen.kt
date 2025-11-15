@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -59,9 +60,14 @@ fun MediaScreen(
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .border(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(8.dp)
+                                width = 2.dp,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.secondary,
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                                    )
+                                ),
+                                shape = RoundedCornerShape(8.dp)
                             )
                             .clickable { navController.navigate("viewer/$i") }
                     ) {
