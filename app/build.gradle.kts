@@ -76,5 +76,6 @@ dependencies {
     implementation(libs.zip4j)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.play.services.ads)
 
 }
