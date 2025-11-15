@@ -19,6 +19,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.android.gms.ads.MobileAds
 import com.pTech.trustTheBox.di.data.PassphraseDataStore
 import com.pTech.trustTheBox.model.MItem
 import com.pTech.trustTheBox.sdk.KeepScreenOn
@@ -39,6 +41,7 @@ import com.pTech.trustTheBox.ui.theme.component.PassphraseDialog
 import com.pTech.trustTheBox.ui.theme.screens.MainScreen
 import com.pTech.trustTheBox.ui.theme.screens.MediaScreen
 import com.pTech.trustTheBox.ui.theme.screens.ViewerScreen
+import com.pTech.trustTheBox.util.AdManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -66,47 +69,56 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         lifecycleScope.launch {
             currentPassphrase = PassphraseDataStore.getPassphrase(this@MainActivity).first()
         }
 
-        val selectFileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                result.data?.let { data ->
-                    val uris = mutableListOf<Uri>()
-                    data.clipData?.let {
-                        for (i in 0 until it.itemCount) uris.add(it.getItemAt(i).uri)
-                    } ?: data.data?.let { uris.add(it) }
+        val selectFileLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    result.data?.let { data ->
+                        val uris = mutableListOf<Uri>()
+                        data.clipData?.let {
+                            for (i in 0 until it.itemCount) uris.add(it.getItemAt(i).uri)
+                        } ?: data.data?.let { uris.add(it) }
 
-                    if (uris.isNotEmpty()) {
-                        if (currentPassphrase.isBlank()) {
-                            showPassphraseDialog = true
-                            pendingEncryptUris = uris
-                        } else {
-                            encryptSelectedFiles(uris)
+                        if (uris.isNotEmpty()) {
+                            if (currentPassphrase.isBlank()) {
+                                showPassphraseDialog = true
+                                pendingEncryptUris = uris
+                            } else {
+                                AdManager.showInterstitial(this) {
+                                    encryptSelectedFiles(uris)
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        selectZipLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val uri = result.data?.data ?: return@registerForActivityResult
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        selectZipLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    val uri = result.data?.data ?: return@registerForActivityResult
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
 
-                if (currentPassphrase.isBlank()) {
-                    showPassphraseDialog = true
-                    pendingDecryptUri = uri
-                } else {
-                    decryptArchive(uri)
+                    if (currentPassphrase.isBlank()) {
+                        showPassphraseDialog = true
+                        pendingDecryptUri = uri
+                    } else {
+                        AdManager.showInterstitial(this) {
+                            decryptArchive(uri)
+                        }
+                    }
                 }
             }
-        }
 
         setContent {
-            val passphraseFlow by PassphraseDataStore.getPassphrase(this@MainActivity).collectAsState(initial = currentPassphrase)
+            val passphraseFlow by PassphraseDataStore.getPassphrase(this@MainActivity)
+                .collectAsState(initial = currentPassphrase)
             currentPassphrase = passphraseFlow
 
             navController = rememberNavController()
@@ -119,6 +131,7 @@ class MainActivity : ComponentActivity() {
                             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                             registerScreenshotObserver()
                         }
+
                         else -> {
                             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                             unregisterScreenshotObserver()
@@ -128,7 +141,7 @@ class MainActivity : ComponentActivity() {
             }
 
             TrustTheBoxTheme {
-                androidx.compose.material3.Scaffold(
+                Scaffold(
                     bottomBar = {
                         PassphraseBottomBar(
                             hasPassphrase = currentPassphrase.isNotBlank(),
@@ -141,7 +154,8 @@ class MainActivity : ComponentActivity() {
                             composable("main") {
                                 MainScreen(
                                     selectFileLauncher = selectFileLauncher,
-                                    selectZipLauncher = selectZipLauncher
+                                    selectZipLauncher = selectZipLauncher,
+                                    hasPassphrase = currentPassphrase.isNotBlank()
                                 )
                             }
                             composable("media") {
@@ -164,7 +178,10 @@ class MainActivity : ComponentActivity() {
                                     val trimmed = passphrase.trim()
                                     currentPassphrase = trimmed
                                     lifecycleScope.launch {
-                                        PassphraseDataStore.savePassphrase(this@MainActivity, trimmed)
+                                        PassphraseDataStore.savePassphrase(
+                                            this@MainActivity,
+                                            trimmed
+                                        )
                                     }
 
                                     pendingEncryptUris?.let {
@@ -194,11 +211,16 @@ class MainActivity : ComponentActivity() {
             try {
                 encryptFiles(this@MainActivity, uris, currentPassphrase)
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Зашифровано → Downloads/encrypted_files.zip", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Зашифровано → Downloads/encrypted_files.zip",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Помилка: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "Помилка: ${e.message}", Toast.LENGTH_LONG)
+                        .show()
                 }
             }
         }
@@ -213,29 +235,56 @@ class MainActivity : ComponentActivity() {
                 if (items.isNotEmpty()) {
                     runOnUiThread { navController.navigate("media") }
                 } else {
-                    runOnUiThread { Toast.makeText(this@MainActivity, "Медіа не знайдено", Toast.LENGTH_LONG).show() }
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Медіа не знайдено",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this@MainActivity, "Неправильне слово або пошкоджений архів", Toast.LENGTH_LONG).show() }
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Неправильне слово або пошкоджений архів",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
 
     private fun registerScreenshotObserver() {
-        contentResolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, screenshotObserver)
+        contentResolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            screenshotObserver
+        )
     }
 
     private fun unregisterScreenshotObserver() {
-        try { contentResolver.unregisterContentObserver(screenshotObserver) } catch (_: Exception) {}
+        try {
+            contentResolver.unregisterContentObserver(screenshotObserver)
+        } catch (_: Exception) {
+        }
     }
 
     private fun checkForScreenshot() {
         val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATA)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-        contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, sortOrder)?.use { cursor ->
+        contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            sortOrder
+        )?.use { cursor ->
             if (cursor.moveToFirst()) {
-                val name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
-                val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
+                val name =
+                    cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+                val path =
+                    cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
                 if (name.contains("screenshot", true) || path.contains("/screenshots/", true)) {
                     runOnUiThread {
                         Toast.makeText(this, "Скріншоти заборонені", Toast.LENGTH_LONG).show()
@@ -252,23 +301,32 @@ class MainActivity : ComponentActivity() {
             val name = file.name.lowercase()
             val ext = name.substringAfterLast('.', "")
             if (ext in listOf("jpg", "jpeg", "png", "gif", "webp")) {
-                val isLand = BitmapFactory.decodeFile(file.path)?.let { it.width > it.height } ?: false
+                val isLand =
+                    BitmapFactory.decodeFile(file.path)?.let { it.width > it.height } ?: false
                 list.add(MItem("image", Uri.fromFile(file), null, isLand))
             } else if (ext in listOf("mp4", "mov", "avi", "mkv", "webm")) {
                 val retriever = MediaMetadataRetriever()
                 try {
                     retriever.setDataSource(file.path)
-                    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-                    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                    val width =
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                            ?.toIntOrNull() ?: 0
+                    val height =
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                            ?.toIntOrNull() ?: 0
                     val isLand = width > height
                     val thumb = retriever.getFrameAtTime(0)
                     val thumbUri = thumb?.let {
                         val f = File.createTempFile("thumb_", ".jpg", cacheDir)
-                        f.outputStream().use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+                        f.outputStream()
+                            .use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
                         Uri.fromFile(f)
                     }
                     list.add(MItem("video", Uri.fromFile(file), thumbUri, isLand))
-                } catch (_: Exception) {} finally { retriever.release() }
+                } catch (_: Exception) {
+                } finally {
+                    retriever.release()
+                }
             }
         }
         return list

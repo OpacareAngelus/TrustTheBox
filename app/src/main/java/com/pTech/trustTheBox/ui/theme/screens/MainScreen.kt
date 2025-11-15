@@ -1,6 +1,7 @@
 package com.pTech.trustTheBox.ui.theme.screens
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,8 +29,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color.Companion.Black
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,9 +42,12 @@ import kotlinx.coroutines.delay
 @Composable
 fun MainScreen(
     selectFileLauncher: ActivityResultLauncher<Intent>,
-    selectZipLauncher: ActivityResultLauncher<Intent>
+    selectZipLauncher: ActivityResultLauncher<Intent>,
+    hasPassphrase: Boolean
 ) {
     val alpha = remember { mutableFloatStateOf(0.75f) }
+    val context = LocalContext.current
+    val toastAlertText = stringResource(R.string.enter_key_first)
 
     LaunchedEffect(Unit) {
         var dir = -0.003f
@@ -90,15 +94,20 @@ fun MainScreen(
                     )
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                type = "*/*"
-                                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                            if (hasPassphrase) {
+                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                    type = "*/*"
+                                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                                }
+                                selectFileLauncher.launch(intent)
+                            } else {
+                                Toast.makeText(context, toastAlertText, Toast.LENGTH_SHORT).show()
                             }
-                            selectFileLauncher.launch(intent)
                         },
                         modifier = Modifier
                             .width(300.dp)
-                            .height(64.dp),
+                            .height(64.dp)
+                            .alpha(if (hasPassphrase) 1f else 0.5f),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         contentPadding = PaddingValues()
@@ -144,15 +153,20 @@ fun MainScreen(
                     )
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "application/zip"
+                            if (hasPassphrase) {
+                                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                    type = "application/zip"
+                                }
+                                selectZipLauncher.launch(intent)
+                            } else {
+                                Toast.makeText(context, toastAlertText, Toast.LENGTH_SHORT).show()
                             }
-                            selectZipLauncher.launch(intent)
                         },
                         modifier = Modifier
                             .width(300.dp)
-                            .height(64.dp),
+                            .height(64.dp)
+                            .alpha(if (hasPassphrase) 1f else 0.5f),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                         contentPadding = PaddingValues()
