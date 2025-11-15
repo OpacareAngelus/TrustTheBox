@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TrustTheBox</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="files_not_selected">Файли не обрано</string>
+    <string name="archive_decrypted_no_media">Архив расшифровано, но медиафайлов не найдено</string>
+    <string name="password_not_found">Не удалось найти пароль</string>
+    <string name="decryption_error">Помилка розшифровки: %s</string>
+    <string name="screenshots_forbidden">Скриншоты запрещены!</string>
+    <string name="select_files_for_password">Выбрать файлы для установки пароля</string>
+    <string name="select_archive_for_viewing">Выбрать архив для просмотра</string>
+    <string name="no_media_files">Немає медіафайлів</string>
+</resources>

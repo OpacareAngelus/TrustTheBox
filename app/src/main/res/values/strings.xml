@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">TrustTheBox</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="files_not_selected">No files selected</string>
+    <string name="archive_decrypted_no_media">Archive decrypted, but no media files found</string>
+    <string name="password_not_found">Password not found</string>
+    <string name="decryption_error">Decryption error: %s</string>
+    <string name="screenshots_forbidden">Screenshots are forbidden!</string>
+    <string name="select_files_for_password">Select files to set a password</string>
+    <string name="select_archive_for_viewing">Select an archive to view</string>
+    <string name="no_media_files">No media files</string>
+</resources>
