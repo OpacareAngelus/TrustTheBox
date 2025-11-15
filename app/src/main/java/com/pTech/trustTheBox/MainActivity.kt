@@ -17,75 +17,31 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import coil3.compose.rememberAsyncImagePainter
+import com.pTech.trustTheBox.di.data.PassphraseDataStore
 import com.pTech.trustTheBox.model.MItem
 import com.pTech.trustTheBox.sdk.KeepScreenOn
 import com.pTech.trustTheBox.sdk.TrustTheBox.decryptFile
 import com.pTech.trustTheBox.sdk.TrustTheBox.encryptFiles
+import com.pTech.trustTheBox.ui.theme.component.PassphraseBottomBar
+import com.pTech.trustTheBox.ui.theme.component.PassphraseDialog
+import com.pTech.trustTheBox.ui.theme.screens.MainScreen
+import com.pTech.trustTheBox.ui.theme.screens.MediaScreen
+import com.pTech.trustTheBox.ui.theme.screens.ViewerScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -111,8 +67,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val prefs = getSharedPreferences("trustthebox", MODE_PRIVATE)
-        currentPassphrase = prefs.getString("passphrase", "") ?: ""
+        lifecycleScope.launch {
+            currentPassphrase = PassphraseDataStore.getPassphrase(this@MainActivity).first()
+        }
 
         val selectFileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
@@ -149,6 +106,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val passphraseFlow by PassphraseDataStore.getPassphrase(this@MainActivity).collectAsState(initial = currentPassphrase)
+            currentPassphrase = passphraseFlow
+
             navController = rememberNavController()
             KeepScreenOn()
 
@@ -168,7 +128,7 @@ class MainActivity : ComponentActivity() {
             }
 
             TrustTheBoxTheme {
-                Scaffold(
+                androidx.compose.material3.Scaffold(
                     bottomBar = {
                         PassphraseBottomBar(
                             hasPassphrase = currentPassphrase.isNotBlank(),
@@ -179,13 +139,21 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(padding)) {
                         NavHost(navController = navController, startDestination = "main") {
                             composable("main") {
-                                MainScreen(selectFileLauncher, selectZipLauncher)
+                                MainScreen(
+                                    selectFileLauncher = selectFileLauncher,
+                                    selectZipLauncher = selectZipLauncher
+                                )
                             }
-                            composable("media") { MediaScreen() }
+                            composable("media") {
+                                MediaScreen(
+                                    mediaFiles = mediaFiles.value,
+                                    navController = navController
+                                )
+                            }
                             composable("viewer/{index}") { entry ->
                                 val index = entry.arguments?.getString("index")?.toIntOrNull() ?: 0
                                 val item = mediaFiles.value.getOrNull(index)
-                                if (item != null) ViewerScreen(item)
+                                if (item != null) ViewerScreen(item = item)
                             }
                         }
 
@@ -193,11 +161,11 @@ class MainActivity : ComponentActivity() {
                             PassphraseDialog(
                                 currentValue = currentPassphrase,
                                 onSave = { passphrase ->
-                                    currentPassphrase = passphrase.trim()
-                                    getSharedPreferences("trustthebox", MODE_PRIVATE)
-                                        .edit()
-                                        .putString("passphrase", currentPassphrase)
-                                        .apply()
+                                    val trimmed = passphrase.trim()
+                                    currentPassphrase = trimmed
+                                    lifecycleScope.launch {
+                                        PassphraseDataStore.savePassphrase(this@MainActivity, trimmed)
+                                    }
 
                                     pendingEncryptUris?.let {
                                         encryptSelectedFiles(it)
@@ -305,193 +273,4 @@ class MainActivity : ComponentActivity() {
         }
         return list
     }
-
-    @Composable
-    fun MainScreen(
-        selectFileLauncher: ActivityResultLauncher<Intent>,
-        selectZipLauncher: ActivityResultLauncher<Intent>
-    ) {
-        val alpha = remember { mutableFloatStateOf(0.75f) }
-
-        LaunchedEffect(Unit) {
-            var dir = -0.003f
-            while (true) {
-                alpha.floatValue += dir
-                if (alpha.floatValue <= 0.1f) { alpha.floatValue = 0.1f; dir = 0.003f }
-                else if (alpha.floatValue >= 0.75f) { alpha.floatValue = 0.75f; dir = -0.003f }
-                delay(24)
-            }
-        }
-
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceAround
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic),
-                contentDescription = null,
-                modifier = Modifier.size(200.dp).alpha(alpha.floatValue),
-                contentScale = ContentScale.FillBounds
-            )
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                            type = "*/*"
-                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                        }
-                        selectFileLauncher.launch(intent)
-                    },
-                    modifier = Modifier.width(300.dp).height(64.dp)
-                ) {
-                    Text(stringResource(R.string.select_files_for_password), textAlign = TextAlign.Center)
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                            type = "application/zip"
-                        }
-                        selectZipLauncher.launch(intent)
-                    },
-                    modifier = Modifier.width(300.dp).height(64.dp)
-                ) {
-                    Text(stringResource(R.string.select_archive_for_viewing), textAlign = TextAlign.Center)
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun MediaScreen() {
-        val sorted = mediaFiles.value.sortedByDescending { it.isLandscape }
-        if (sorted.isEmpty()) {
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text("Немає медіафайлів")
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(sorted.size) { i ->
-                    val item = sorted[i]
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                            .clickable { navController.navigate("viewer/$i") }
-                    ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(item.thumbnailUri ?: item.uri),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @androidx.annotation.OptIn(UnstableApi::class)
-    @OptIn(UnstableApi::class)
-    @Composable
-    fun ViewerScreen(item: MItem) {
-        val context = LocalContext.current
-
-        if (item.type == "image") {
-            Image(
-                painter = rememberAsyncImagePainter(item.uri),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
-        } else {
-            val player = remember {
-                ExoPlayer.Builder(context).build().apply {
-                    setMediaItem(MediaItem.fromUri(item.uri))
-                    repeatMode = Player.REPEAT_MODE_ALL
-                    prepare()
-                }
-            }
-            AndroidView(
-                factory = {
-                    PlayerView(context).apply {
-                        this.player = player
-                        useController = true
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            DisposableEffect(Unit) {
-                player.playWhenReady = true
-                onDispose { player.release() }
-            }
-        }
-    }
-}
-
-@Composable
-fun PassphraseBottomBar(hasPassphrase: Boolean, onClick: () -> Unit) {
-    Surface(tonalElevation = 8.dp, shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
-        Card(
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
-                .padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-                Icon(
-                    Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = if (hasPassphrase) MaterialTheme.colorScheme.primary else LocalContentColor.current.copy(alpha = 0.6f)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = if (hasPassphrase) "Секретне слово встановлено" else "Натисніть, щоб ввести секретне слово",
-                    color = if (hasPassphrase) MaterialTheme.colorScheme.primary else LocalContentColor.current.copy(alpha = 0.6f)
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PassphraseDialog(currentValue: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf(currentValue) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Секретне слово") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text("Наприклад: Мій кіт Барсик 2025") },
-                supportingText = { Text("Обидва користувачі мають знати це слово") }
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(text) },
-                enabled = text.trim().isNotBlank()
-            ) { Text("Зберегти") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
-        }
-    )
 }

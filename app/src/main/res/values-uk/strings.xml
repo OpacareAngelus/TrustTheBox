@@ -1,13 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TrustTheBox</string>
     <string name="title_activity_main">MainActivity</string>
-    <string name="files_not_selected">Файли не обрано</string>
-    <string name="archive_decrypted_no_media">Архив расшифровано, но медиафайлов не найдено</string>
-    <string name="password_not_found">Не удалось найти пароль</string>
-    <string name="decryption_error">Помилка розшифровки: %s</string>
-    <string name="screenshots_forbidden">Скриншоты запрещены!</string>
-    <string name="select_files_for_password">Выбрать файлы для установки пароля</string>
-    <string name="select_archive_for_viewing">Выбрать архив для просмотра</string>
+    <string name="files_not_selected">Файли не вибрано</string>
+    <string name="archive_decrypted_no_media">Архів розшифровано, але медіафайлів не знайдено</string>
+    <string name="password_not_found">Таємне слово не знайдено</string>
+    <string name="decryption_error">Помилка розшифрування: %s</string>
+    <string name="screenshots_forbidden">Знімки екрана заборонені!</string>
+
+    <string name="select_files_for_password">Зашифрувати файли</string>
+    <string name="select_archive_for_viewing">Відкрити зашифрований архів</string>
+
+    <string name="passphrase_bottom_set">Таємне слово встановлено</string>
+    <string name="passphrase_bottom_not_set">Натисніть, щоб ввести таємне слово</string>
+
+    <string name="passphrase_dialog_title">Таємне слово</string>
+    <string name="passphrase_dialog_placeholder">Наприклад: Мій кіт Барсик 2025</string>
+    <string name="passphrase_dialog_supporting">Обидва користувачі мають знати це слово</string>
+    <string name="passphrase_dialog_save">Зберегти</string>
+    <string name="passphrase_dialog_cancel">Скасувати</string>
+
     <string name="no_media_files">Немає медіафайлів</string>
 </resources>
