@@ -1,1 +1,17 @@
--keep class androidx.core.app.CoreComponentFactory { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class schemaorg_apache_xmlbeans.system.** { *; }
+-keep class org.openxmlformats.schemas.** { *; }
+-keep class com.microsoft.schemas.** { *; }
+-keep class org.apache.poi.schemas.ooxml.system.ooxml.** { *; }
+-dontwarn org.apache.xmlbeans.**
+-dontwarn schemaorg_apache_xmlbeans.**
+-dontwarn org.openxmlformats.schemas.**
+-dontwarn com.microsoft.schemas.**
+-dontwarn java.awt.**
+-dontwarn javax.xml.stream.**
+-dontwarn org.osgi.**
+-dontwarn org.apache.batik.**
+-dontwarn net.sf.saxon.**
+-dontwarn edu.umd.cs.findbugs.**
+-dontwarn com.github.luben.zstd.**
+-dontwarn aQute.bnd.annotation.**

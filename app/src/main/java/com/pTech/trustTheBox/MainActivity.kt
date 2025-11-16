@@ -19,9 +19,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
@@ -167,10 +171,15 @@ class MainActivity : ComponentActivity() {
                                     navController = navController
                                 )
                             }
-                            composable("viewer/{index}") { entry ->
-                                val index = entry.arguments?.getString("index")?.toIntOrNull() ?: 0
-                                val item = mediaFiles.value.getOrNull(index)
-                                if (item != null) ViewerScreen(item = item)
+                            composable("viewer/{id}") { entry ->
+                                val idStr = entry.arguments?.getString("id")
+                                val id = idStr?.toLongOrNull() ?: 0L
+                                val item = mediaFiles.value.firstOrNull { it.id == id }
+                                if (item != null) {
+                                    ViewerScreen(item = item)
+                                } else {
+                                    Text("Файл не знайдено")
+                                }
                             }
                         }
 
@@ -301,14 +310,16 @@ class MainActivity : ComponentActivity() {
     private fun buildMediaItems(extractedFiles: List<File>): List<MItem> {
         val list = mutableListOf<MItem>()
         extractedFiles.forEach { file ->
+            val id = file.absolutePath.hashCode().toLong()  // Унікальний id на основі шляху файлу (або System.currentTimeMillis() для тимчасового)
             val name = file.name.lowercase()
             val ext = name.substringAfterLast('.', "")
             when (ext) {
                 in listOf("jpg", "jpeg", "png", "gif", "webp") -> {
                     val bitmap = BitmapFactory.decodeFile(file.path)
                     val isLand = bitmap?.let { it.width > it.height } ?: false
-                    list.add(MItem("image", Uri.fromFile(file), null, isLand))
+                    list.add(MItem(id = id, type = "image", uri = Uri.fromFile(file), thumbnailUri = null, isLandscape = isLand))
                 }
+
                 in listOf("mp4", "mov", "avi", "mkv", "webm") -> {
                     val retriever = MediaMetadataRetriever()
                     try {
@@ -322,21 +333,27 @@ class MainActivity : ComponentActivity() {
                             f.outputStream().use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
                             Uri.fromFile(f)
                         }
-                        list.add(MItem("video", Uri.fromFile(file), thumbUri, isLand))
-                    } catch (_: Exception) {} finally { retriever.release() }
+                        list.add(MItem(id = id, type = "video", uri = Uri.fromFile(file), thumbnailUri = thumbUri, isLandscape = isLand))
+                    } catch (_: Exception) {
+                    } finally {
+                        retriever.release()
+                    }
                 }
+
                 "txt" -> {
                     val text = file.readText(Charsets.UTF_8)
                     val preview = text.take(200) + if (text.length > 200) "..." else ""
-                    list.add(MItem("text", Uri.fromFile(file), null, false, preview))
+                    list.add(MItem(id = id, type = "text", uri = Uri.fromFile(file), thumbnailUri = null, isLandscape = false, previewText = preview))
                 }
+
                 "pdf" -> {
                     val thumbUri = generatePdfThumbnail(file)
-                    list.add(MItem("pdf", Uri.fromFile(file), thumbUri, false))
+                    list.add(MItem(id = id, type = "pdf", uri = Uri.fromFile(file), thumbnailUri = thumbUri, isLandscape = false))
                 }
+
                 "docx" -> {
                     val preview = extractDocxPreview(file)
-                    list.add(MItem("document", Uri.fromFile(file), null, false, preview))
+                    list.add(MItem(id = id, type = "document", uri = Uri.fromFile(file), thumbnailUri = null, isLandscape = false, previewText = preview))
                 }
             }
         }
@@ -345,7 +362,8 @@ class MainActivity : ComponentActivity() {
 
     private fun generatePdfThumbnail(file: File): Uri? {
         return try {
-            val parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            val parcelFileDescriptor =
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
             val pdfRenderer = PdfRenderer(parcelFileDescriptor)
             val page = pdfRenderer.openPage(0)
             val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
@@ -355,7 +373,8 @@ class MainActivity : ComponentActivity() {
             parcelFileDescriptor.close()
 
             val thumbFile = File.createTempFile("pdf_thumb_", ".jpg", cacheDir)
-            thumbFile.outputStream().use { out -> bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+            thumbFile.outputStream()
+                .use { out -> bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out) }
             Uri.fromFile(thumbFile)
         } catch (e: Exception) {
             null

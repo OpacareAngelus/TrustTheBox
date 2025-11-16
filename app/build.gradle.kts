@@ -77,7 +77,9 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.play.services.ads)
-    implementation("org.apache.poi:poi:5.5.0")
-    implementation("org.apache.poi:poi-ooxml:5.5.0")
+    implementation(libs.poi)
+    implementation(libs.xmlbeans)
+    implementation(libs.poi.ooxml)
+    implementation(libs.slf4j.nop)
     implementation(libs.androidx.pdf.compose)
 }

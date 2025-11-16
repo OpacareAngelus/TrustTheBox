@@ -9,19 +9,22 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.util.Log
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.model.ZipParameters
 import net.lingala.zip4j.model.enums.EncryptionMethod
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.security.MessageDigest
-import java.util.Base64
 
 object TrustTheBox {
 
     private const val PASSWORD_COUNT = 10
-    private const val PASSWORD_LENGTH_BYTES = 12
+    private const val PASSWORD_LENGTH_CHARS = 256
+
+    private const val CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_+=[]{}|;:'\",.<>?/`~"
 
     private fun generatePasswordsFromPassphrase(passphrase: String): List<String> {
         val passwords = mutableListOf<String>()
@@ -35,9 +38,22 @@ object TrustTheBox {
                 this[seed.size + 2] = (index shr 8).toByte()
                 this[seed.size + 3] = index.toByte()
             }
-            val nextHash = digest.digest(indexedSeed)
-            val passwordBytes = nextHash.copyOf(PASSWORD_LENGTH_BYTES)
-            passwords.add(Base64.getEncoder().encodeToString(passwordBytes))
+            var nextHash = digest.digest(indexedSeed)
+
+            val byteBuffer = ByteArrayOutputStream()
+            while (byteBuffer.size() < PASSWORD_LENGTH_CHARS) {
+                byteBuffer.write(nextHash)
+                nextHash = digest.digest(nextHash)
+            }
+            val passwordBytes = byteBuffer.toByteArray().copyOf(PASSWORD_LENGTH_CHARS)
+
+            val password = StringBuilder()
+            for (byte in passwordBytes) {
+                val charIndex = (byte.toInt() and 0xFF) % CHARSET.length
+                password.append(CHARSET[charIndex])
+            }
+            passwords.add(password.toString())
+
             seed = digest.digest(nextHash)
         }
         return passwords
@@ -50,6 +66,8 @@ object TrustTheBox {
     ) {
         val passwords = generatePasswordsFromPassphrase(passphrase)
         val chosenPassword = passwords.random()
+        Log.d("EncryptManager", "Chosen key: $passphrase")
+        Log.d("EncryptManager", "Chosen password: $chosenPassword")
 
         val contentResolver = context.contentResolver
         val tempFiles = mutableListOf<File>()
@@ -103,7 +121,8 @@ object TrustTheBox {
             try {
                 ZipFile(tempZip.absolutePath, pwd.toCharArray()).use { zipFile ->
                     if (zipFile.fileHeaders.isEmpty()) continue
-                    val extractDir = File(context.cacheDir, "extracted_${System.currentTimeMillis()}")
+                    val extractDir =
+                        File(context.cacheDir, "extracted_${System.currentTimeMillis()}")
                     extractDir.mkdirs()
                     zipFile.extractAll(extractDir.absolutePath)
                     extractDir.listFiles()?.forEach { file ->
@@ -154,7 +173,8 @@ object TrustTheBox {
             contentResolver.update(uri, updateValues, null, null)
         } else {
             @Suppress("DEPRECATION")
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val downloadsDir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             downloadsDir.mkdirs()
             val destFile = File(downloadsDir, displayName)
 
