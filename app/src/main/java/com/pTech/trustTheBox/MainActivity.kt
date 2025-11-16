@@ -46,6 +46,7 @@ import com.pTech.trustTheBox.ui.theme.screens.MainScreen
 import com.pTech.trustTheBox.ui.theme.screens.mediaScreen.MediaScreen
 import com.pTech.trustTheBox.ui.theme.screens.viewerScreen.ViewerScreen
 import com.pTech.trustTheBox.util.AdManager
+import com.pTech.trustTheBox.util.BillingManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -76,6 +77,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BillingManager.init(this, this)
         lifecycleScope.launch {
             currentPassphrase = PassphraseDataStore.getPassphrase(this@MainActivity).first()
         }
@@ -310,7 +312,7 @@ class MainActivity : ComponentActivity() {
     private fun buildMediaItems(extractedFiles: List<File>): List<MItem> {
         val list = mutableListOf<MItem>()
         extractedFiles.forEach { file ->
-            val id = file.absolutePath.hashCode().toLong()  // Унікальний id на основі шляху файлу (або System.currentTimeMillis() для тимчасового)
+            val id = file.absolutePath.hashCode().toLong()
             val name = file.name.lowercase()
             val ext = name.substringAfterLast('.', "")
             when (ext) {

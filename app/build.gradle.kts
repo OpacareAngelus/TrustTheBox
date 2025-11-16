@@ -82,4 +82,5 @@ dependencies {
     implementation(libs.poi.ooxml)
     implementation(libs.slf4j.nop)
     implementation(libs.androidx.pdf.compose)
+    implementation("com.android.billingclient:billing-ktx:8.1.0")
 }
