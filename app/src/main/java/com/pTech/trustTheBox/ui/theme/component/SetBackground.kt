@@ -23,7 +23,6 @@ fun SetBackground(){
         modifier = Modifier
             .fillMaxSize()
             .alpha(0.8f)
-            .blur(radius = 8.dp)
     )
 
     Box(

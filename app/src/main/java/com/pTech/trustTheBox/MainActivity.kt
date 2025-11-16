@@ -42,7 +42,7 @@ import com.pTech.trustTheBox.sdk.TrustTheBox.decryptFile
 import com.pTech.trustTheBox.sdk.TrustTheBox.encryptFiles
 import com.pTech.trustTheBox.ui.theme.component.PassphraseBottomBar
 import com.pTech.trustTheBox.ui.theme.component.PassphraseDialog
-import com.pTech.trustTheBox.ui.theme.screens.MainScreen
+import com.pTech.trustTheBox.ui.theme.screens.mainScreen.MainScreen
 import com.pTech.trustTheBox.ui.theme.screens.mediaScreen.MediaScreen
 import com.pTech.trustTheBox.ui.theme.screens.viewerScreen.ViewerScreen
 import com.pTech.trustTheBox.util.AdManager

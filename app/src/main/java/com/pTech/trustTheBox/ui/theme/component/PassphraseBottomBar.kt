@@ -1,6 +1,5 @@
 package com.pTech.trustTheBox.ui.theme.component
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -22,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -38,7 +36,6 @@ fun PassphraseBottomBar(
     onClick: () -> Unit
 ) {
     val isPremium by BillingManager.isPremium.collectAsState()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -53,7 +50,6 @@ fun PassphraseBottomBar(
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             )
     ) {
-        // Блок з паролем
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,49 +75,16 @@ fun PassphraseBottomBar(
         }
 
         if (!isPremium) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                    .clickable {
-                        BillingManager.launchPurchase(context as Activity)
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = "🚀 Прибрати рекламу назавжди",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            // Банерна реклама
             AndroidView(
                 factory = {
                     AdView(it).apply {
                         setAdSize(AdSize.BANNER)
-                        adUnitId =
-                            "ca-app-pub-3940256099942544/6300978111" // ← заміни на свій у релізі!
+                        adUnitId = "ca-app-pub-3940256099942544/6300978111" // тестовий — завжди показує
                         loadAd(AdRequest.Builder().build())
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
-                    .padding(vertical = 12.dp)
-            ) {
-                Text(
-                    text = "✓ Реклама вимкнена назавжди",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
         }
     }
 }

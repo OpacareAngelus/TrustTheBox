@@ -1,4 +1,4 @@
-package com.pTech.trustTheBox.ui.theme.screens
+package com.pTech.trustTheBox.ui.theme.screens.mainScreen
 
 import android.content.Intent
 import android.widget.Toast
@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.pTech.trustTheBox.R
 import com.pTech.trustTheBox.ui.theme.component.SetBackground
+import com.pTech.trustTheBox.util.BillingManager
 import kotlinx.coroutines.delay
 
 @Composable
@@ -48,6 +51,7 @@ fun MainScreen(
     val alpha = remember { mutableFloatStateOf(0.75f) }
     val context = LocalContext.current
     val toastAlertText = stringResource(R.string.enter_key_first)
+    val isPremium by BillingManager.isPremium.collectAsState()
 
     LaunchedEffect(Unit) {
         var dir = -0.003f
@@ -188,9 +192,61 @@ fun MainScreen(
                             Text(
                                 text = stringResource(R.string.select_archive_for_viewing),
                                 style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSecondary,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 textAlign = TextAlign.Center
                             )
+                        }
+                    }
+                }
+
+                if (!isPremium) {
+                    Spacer(Modifier.height(36.dp))
+
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .width(320.dp)
+                                .height(64.dp)
+                                .shadow(
+                                    elevation = 24.dp,
+                                    ambientColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f),
+                                    spotColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+                                )
+                                .blur(16.dp)
+                                .alpha(0.6f)
+                        )
+                        Button(
+                            onClick = {
+                                BillingManager.launchPurchase(context as androidx.activity.ComponentActivity)
+                            },
+                            modifier = Modifier
+                                .width(300.dp)
+                                .height(64.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                            contentPadding = PaddingValues()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                MaterialTheme.colorScheme.secondary,
+                                                MaterialTheme.colorScheme.background
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Прибрати рекламу назавжди",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
